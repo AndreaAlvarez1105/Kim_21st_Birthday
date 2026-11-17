@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Birthday Cake 🎂</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400..700&display=swap" rel="stylesheet" />
+  <style>
+    #mainTitle {
+      font-size: clamp(22px, 6.5vw, 32px);
+      font-family: 'Pixelify Sans', sans-serif;
+      margin-bottom: 8px;
+    }
+
+    #subTitle {
+      font-size: clamp(14px, 4vw, 18px);
+      font-family: 'Pixelify Sans', sans-serif;
+      color: #555;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <div id="birthdayText"></div>
+    <div class="cake-container">
+      <div class="cake" id="cake"></div>
+    </div>
+  </div>
+
+  <script>
+    // Read URL params
+    const params = new URLSearchParams(window.location.search);
+    const name = params.get("name") || "Kim!!";
+    let candleCount = parseInt(params.get("candles")) || 21;
+    candleCount = Math.min(Math.max(candleCount, 1), 30);
+
+    const birthdayText = document.getElementById("birthdayText");
+    birthdayText.innerHTML = `
+        <div id="mainTitle">Felices 21, ${name}!</div>
+        <div id="subTitle">Pide un deseo, sopla las velas y abre cada cartita.</div>
+              <div id="subTitle">para leer unas palabras muy especiales que he escrito para ti.</div>
+
+        `;
+
+    const cake = document.getElementById("cake");
+
+    const colors = [
+      "green-candle",
+      "purple-candle",
+      "blue-candle",
+      "yellow-candle",
+    ];
+    const CAKE_VISUAL_WIDTH = 35;
+
+    function createCandles(count) {
+      cake.innerHTML = "";
+      const CANDLE_VISUAL_WIDTH = 2;
+      const availableWidth = CAKE_VISUAL_WIDTH;
+      const candlesPerRow = 6;
+      const rowCount = Math.ceil(count / candlesPerRow);
+      const shiftAmount = 4;
+
+      for (let i = 0; i < count; i++) {
+        const candle = document.createElement("div");
+        candle.classList.add("candle");
+        const colorClass = colors[Math.floor(Math.random() * colors.length)];
+        candle.classList.add(colorClass);
+
+        const row = Math.floor(i / candlesPerRow);
+        const col = i % candlesPerRow;
+        const totalCandlesInRow = Math.min(
+          candlesPerRow,
+          count - row * candlesPerRow
+        );
+        const rowSpacing = availableWidth / (totalCandlesInRow + 1);
+
+        const leftBase = rowSpacing * (col + 1) - CANDLE_VISUAL_WIDTH / 2 + 5;
+        const rowShift = row % 2 === 0 ? 0 : shiftAmount;
+
+        candle.style.position = "absolute";
+        candle.style.top = `${10 + row * 3}px`;
+        candle.style.left = `${leftBase - rowShift + 4}px`;
+
+        cake.appendChild(candle);
+      }
+    }
+
+    createCandles(candleCount);
+
+    // === Microphone / Blow Detection ===
+    async function startMicDetection() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: true,
+        });
+        const audioContext = new (window.AudioContext ||
+          window.webkitAudioContext)();
+        const source = audioContext.createMediaStreamSource(stream);
+        const analyser = audioContext.createAnalyser();
+        analyser.fftSize = 512;
+
+        source.connect(analyser);
+
+        const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+        let blown = false;
+
+        function detectBlow() {
+          analyser.getByteFrequencyData(dataArray);
+
+          let highFreqSum = 0;
+          let lowFreqSum = 0;
+
+          const midpoint = dataArray.length / 2;
+
+          for (let i = 0; i < dataArray.length; i++) {
+            if (i < midpoint) {
+              lowFreqSum += dataArray[i];
+            } else {
+              highFreqSum += dataArray[i];
+            }
+          }
+
+          const highAvg = highFreqSum / (dataArray.length / 2);
+          const lowAvg = lowFreqSum / (dataArray.length / 2);
+
+          const ratio = highAvg / (lowAvg + 1);
+
+          const BLOW_RATIO_THRESHOLD = 0.5;
+
+          if (ratio > BLOW_RATIO_THRESHOLD && !blown) {
+            blown = true;
+            blowOutCandles();
+          }
+
+          requestAnimationFrame(detectBlow);
+        }
+
+        detectBlow();
+      } catch (err) {
+        console.error("Mic access error:", err);
+      }
+    }
+
+    function blowOutCandles() {
+      const candles = document.querySelectorAll(".candle");
+      candles.forEach((candle) => {
+        const delay = Math.random() * 1000;
+        setTimeout(() => {
+          colors.forEach((color) => {
+            if (candle.classList.contains(color)) {
+              candle.classList.add("blown");
+            }
+          });
+        }, delay);
+      });
+
+      // Update subTitle after short delay
+      setTimeout(() => {
+        const subTitle = document.getElementById("subTitle");
+        subTitle.textContent = `Yayy! Wishing you the happiest birthday ever!! 🎉`;
+      }, 1200);
+    }
+
+    startMicDetection();
+
+    // === Cartas: cada una con su propio mensaje ===
+    // Edita aquí el título, el mensaje y las imágenes de cada carta.
+    // "imagenes" puede tener 0, 1, 2 o más rutas (por ejemplo "image/foto1.jpg").
+    const cartas = [
+      {
+        titulo: "Para recordar viejos tiempos...",
+        mensaje: "Parece increíble que nos conozcamos desde que teníamos apenas 6 añitos y hoy ya estemos celebrando tus 21. Agradezco profundamente cada momento que hemos vivido y le doy gracias a la vida por habernos puesto juntas desde tan pequeñas para crecer la una al lado de la otra. (Encontré esa foto de la promo de prepa, siempre con la cara de amargada salís jajaja)",
+        imagenes: ["image/Promo.jpeg", "image/Colegio.jpg"], // ej: ["image/carta1-a.jpg", "image/carta1-b.jpg"]
+      },
+      {
+        titulo: "En el cole...",
+        mensaje: "Quién diría que terminaríamos siendo tan unidas, sobre todo recordando que empezamos en grupitos diferentes y hasta te llegue a caer mal al principio. Qué suerte que nuestros caminos terminaron entrelazándose para regalarnos momentos imborrables que siempre voy a llevar en el corazón.",
+        imagenes: ["image/Bandera.jpeg", "image/graduacion.jpeg"],
+      },
+      {
+        titulo: "Siempre las cinco....",
+        mensaje: "Tenemos tantas memorias juntas: los mejores chismes, risas, caídas y críticas, pero al final del día siempre somos nosotras cinco. Eres un papel inmenso en nuestra dinámica, nos complementas perfectamente y agradezco muchísimo que sigamos siendo las cinco de siempre. Hoy, mañana y siempre <3",
+        imagenes: ["image/todas.jpeg", "image/parque.jpeg"],
+      },
+      {
+        titulo: "Por más cumpleaños juntas....",
+        mensaje: "Te deseo lo mejor en este nuevo año de vida y que logres cumplir cada una de tus metas. Estoy segura de que en un futuro serás una psicóloga brillante, y espero estar ahí para aplaudirte y para seguir celebrando muchísimos cumpleaños más a tu lado. Felices 21, Kim! Te quiero mucho <3",
+        imagenes: ["image/cumple.jpeg", "image/cumple2.jpeg", "image/cumple3.jpeg", "image/cumple4.jpeg"],
+      },
+    ];
+
+    function abrirCarta(indice) {
+      const carta = cartas[indice];
+      if (!carta) return;
+
+      document.getElementById("cartaTitulo").textContent = carta.titulo;
+      document.getElementById("cartaMensaje").textContent = carta.mensaje;
+
+      const contenedor = document.getElementById("cartaImagenes");
+      contenedor.innerHTML = "";
+      (carta.imagenes || []).forEach((src, i) => {
+        const img = document.createElement("img");
+        img.src = src;
+        img.alt = `${carta.titulo} - imagen ${i + 1}`;
+        contenedor.appendChild(img);
+      });
+
+      document.getElementById("cartaModal").style.display = "flex";
+    }
+
+    function cerrarCarta() {
+      document.getElementById("cartaModal").style.display = "none";
+    }
+
+    // Cerrar tocando fuera de la carta o con la tecla Escape
+    document.addEventListener("click", (e) => {
+      if (e.target.id === "cartaModal") cerrarCarta();
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") cerrarCarta();
+    });
+
+  </script>
+  <!-- Contenedor de las cartas alrededor del pastel -->
+  <div class="letters-container">
+    <!-- Lado izquierdo -->
+    <div class="letters-side">
+      <div class="letter-icon" onclick="abrirCarta(0)"><img src="image/carta.png" alt="Carta 1"></div>
+      <div class="letter-icon" onclick="abrirCarta(1)"><img src="image/carta.png" alt="Carta 2"></div>
+    </div>
+    <!-- Lado derecho -->
+    <div class="letters-side">
+      <div class="letter-icon" onclick="abrirCarta(2)"><img src="image/carta.png" alt="Carta 3"></div>
+      <div class="letter-icon" onclick="abrirCarta(3)"><img src="image/carta.png" alt="Carta 4"></div>
+    </div>
+  </div>
+
+  <!-- Modal (Pequeña carta que se abre al hacer clic) -->
+  <div id="cartaModal" class="modal-oculto">
+    <div class="carta-contenido">
+      <span class="cerrar-carta" onclick="cerrarCarta()">&times;</span>
+      <h2 id="cartaTitulo" class="carta-titulo"></h2>
+      <p id="cartaMensaje" class="carta-mensaje"></p>
+      <div id="cartaImagenes" class="imagenes-carta"></div>
+    </div>
+  </div>
+
+</body>
+
+</html>
